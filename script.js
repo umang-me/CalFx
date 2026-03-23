@@ -19,10 +19,8 @@ function toggleTheme() {
 })();
 
 /* ─────────── Calculator State ─────────── */
-const RATE = 0.33921; // CZK → GTQ
-
 const s = {
-    current: '1000',
+    current: '',
     operator: null,
     previous: null,
     waitingForOperand: false,
@@ -30,8 +28,9 @@ const s = {
 
 /* ─────────── Display ─────────── */
 function formatDisplay(val) {
+    if (val === '' || val === '0') return '';
     const n = parseFloat(val);
-    if (isNaN(n)) return '0';
+    if (isNaN(n)) return '';
     if (Math.abs(n) >= 1e10) return n.toExponential(3);
     const [int, dec] = n.toString().split('.');
     const formatted = parseInt(int).toLocaleString('en-US');
@@ -40,14 +39,8 @@ function formatDisplay(val) {
 
 function updateDisplay() {
     const disp = document.getElementById('display');
-    const conv = document.getElementById('converted');
-    const raw = parseFloat(s.current) || 0;
 
     disp.textContent = formatDisplay(s.current);
-    conv.textContent = (raw * RATE).toLocaleString('en-US', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-    });
 
     disp.classList.add('flash');
     setTimeout(() => disp.classList.remove('flash'), 120);
@@ -153,18 +146,13 @@ document.addEventListener('keydown', e => {
 
 /* ─────────── PWA ─────────── */
 if ('serviceWorker' in navigator) {
-    const sw = `
-        const CACHE = 'calcfx-v1';
-        self.addEventListener('install', e =>
-          e.waitUntil(caches.open(CACHE).then(c => c.addAll([])))
-        );
-        self.addEventListener('fetch', e =>
-          e.respondWith(caches.match(e.request).then(r => r || fetch(e.request)))
-        );
-      `;
-    const blob = new Blob([sw], { type: 'application/javascript' });
-    const swUrl = URL.createObjectURL(blob);
-    navigator.serviceWorker.register(swUrl).catch(() => { });
+    navigator.serviceWorker.register('sw.js')
+        .then(registration => {
+            console.log('Service Worker registered with scope:', registration.scope);
+        })
+        .catch(error => {
+            console.log('Service Worker registration failed:', error);
+        });
 }
 
 let deferredPrompt;
@@ -174,14 +162,6 @@ window.addEventListener('beforeinstallprompt', e => {
     document.getElementById('pwa-banner').style.display = 'flex';
 });
 
-function installPWA() {
-    if (!deferredPrompt) return;
-    deferredPrompt.prompt();
-    deferredPrompt.userChoice.then(() => {
-        document.getElementById('pwa-banner').style.display = 'none';
-        deferredPrompt = null;
-    });
-}
 
 /* ─────────── Init ─────────── */
 updateDisplay();
